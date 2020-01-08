@@ -3,17 +3,20 @@
 use strict;
 use warnings;
 
+use Getopt::Std;
 use HTML::TokeParser::Simple;
 use LWP::Simple;
 use XML::Twig;
 
 
-if (@ARGV and $ARGV[0] eq '-h' || $ARGV[0] eq '--help') {
-	print STDERR "usage: $0 [LOCATION_REGEX]\n";
+our ($opt_c, $opt_h);
+getopts('c:h');
+if ($opt_h) {
+	print STDERR "usage: $0 [-c COUNTY_REGEX] [LOCATION_REGEX]\n";
 	exit 0;
 }
 
-my $re = join ' ', @ARGV;
+my $re = $ARGV[0];
 
 my $t = XML::Twig->new(twig_handlers => {item => \&item});
 my $url = 'https://chart.maryland.gov/rss/ProduceRSS.aspx?Type=TIandRC&filter=ALL';
@@ -29,6 +32,7 @@ sub item {
 	my ($county, $loc) = $title =~ /(.+) : (.+)/;
 
 	return if $re and $loc !~ /$re/;
+	return if $opt_c and $county !~ /$opt_c/;
 
 	my ($type, $dir, $date, $desc);
 	my $p = HTML::TokeParser::Simple->new(\$html);
