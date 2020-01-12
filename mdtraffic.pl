@@ -9,14 +9,24 @@ use LWP::Simple;
 use XML::Twig;
 
 
-our ($opt_c, $opt_h);
-getopts('c:h');
-if ($opt_h) {
-	print STDERR "usage: $0 [-c COUNTY_REGEX] [LOCATION_REGEX]\n";
-	exit 0;
-}
+my (@counties, @locs);
 
-my $re = $ARGV[0];
+while (@ARGV) {
+	my $arg = shift @ARGV;
+	
+	if ($arg eq '-h') {
+		print STDERR "usage: $0 [-c COUNTY_REGEX] [LOCATION_REGEX]\n";
+		exit 0;
+	}
+	elsif ($arg eq '-c') {
+		push @counties, shift @ARGV;
+		push @locs, shift @ARGV;
+	}
+	else {
+		push @counties, undef;
+		push @locs, $arg;
+	}
+}
 
 my $t = XML::Twig->new(twig_handlers => {item => \&item});
 my $url = 'https://chart.maryland.gov/rss/ProduceRSS.aspx?Type=TIandRC&filter=ALL';
@@ -31,13 +41,29 @@ sub item {
 
 	my ($county, $loc) = $title =~ /(.+) : (.+)/;
 
-	return if $re and $loc !~ /$re/;
-	return if $opt_c and $county !~ /$opt_c/;
+	if (@locs) {
+		my $is_match = 0;
+
+		for (my $n = 0; $n < scalar @locs; $n++) {
+			if ($counties[$n] && $locs[$n]) {
+				$is_match = 1 if ($county =~ /$counties[$n]/i and
+					          $loc =~ /$locs[$n]/i);
+			}
+			elsif ($counties[$n]) {
+				$is_match = 1 if $county =~ /$counties[$n]/i;
+			}
+			elsif ($locs[$n]) {
+				$is_match = 1 if $loc =~ /$locs[$n]/i;
+			}
+		}
+
+		return unless $is_match;
+	}
 
 	my ($type, $dir, $date, $desc);
 	my $p = HTML::TokeParser::Simple->new(\$html);
 	if ($cat eq 'Traffic Incidents') {
-		$desc = "";
+		$desc = '';
 		while (my $token = $p->get_token) {
 			next unless $token->is_text;
 			my $text = $token->as_is;
@@ -56,13 +82,13 @@ sub item {
 		}
 	}
 	else {
-		$type = "Closure";
-		$desc = "";
+		$type = 'Closure';
+		$desc = '';
 		while (my $token = $p->get_token) {
 			next unless $token->is_text;
 			my $text = $token->as_is;
 
-			next if $text eq "Direction: ";
+			next if $text eq 'Direction: ';
 			unless ($dir) {
 				$dir = $text;
 				next;
