@@ -3,7 +3,6 @@
 use strict;
 use warnings;
 
-use Getopt::Std;
 use HTML::TokeParser::Simple;
 use LWP::Simple;
 use XML::Twig;
